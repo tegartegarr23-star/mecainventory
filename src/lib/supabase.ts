@@ -1,8 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { AppData, Recipe, StockMovement } from '../types'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const env = import.meta.env as ImportMetaEnv & {
+  NEXT_PUBLIC_SUPABASE_URL?: string
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string
+}
+const url = env.NEXT_PUBLIC_SUPABASE_URL ?? env.VITE_SUPABASE_URL
+const key = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.VITE_SUPABASE_PUBLISHABLE_KEY ?? env.VITE_SUPABASE_ANON_KEY
 export const cloudEnabled = Boolean(url && key)
 export const supabase: SupabaseClient | null = cloudEnabled ? createClient(url!, key!) : null
 
@@ -10,8 +14,6 @@ const toIso = (date: string) => date.includes('T') ? date : `${date}T00:00:00.00
 
 export async function pushSnapshot(data: AppData): Promise<string> {
   if (!supabase) return 'Mode lokal aktif — isi .env.local untuk menghubungkan Supabase.'
-  const { data: auth } = await supabase.auth.getSession()
-  if (!auth.session) throw new Error('Masuk ke akun Supabase terlebih dahulu.')
   const recipeRows = data.recipes.map((recipe) => ({
     id: recipe.id, owner_type: recipe.ownerType, menu_id: recipe.menuId ?? null, target_ingredient_id: recipe.targetIngredientId ?? null,
     version: recipe.version, is_active: recipe.isActive, yield_quantity: recipe.yieldQuantity, notes: recipe.notes, created_at: recipe.createdAt,
@@ -47,8 +49,6 @@ export async function pushSnapshot(data: AppData): Promise<string> {
 
 export async function pullSnapshot(local: AppData): Promise<AppData | null> {
   if (!supabase) return null
-  const { data: auth } = await supabase.auth.getSession()
-  if (!auth.session) throw new Error('Masuk ke akun Supabase terlebih dahulu.')
   const [categories, units, suppliers, ingredients, menus, recipes, details, transactions, menuSales, movements, tombstones] = await Promise.all([
     supabase.from('categories').select('*'), supabase.from('units').select('*'), supabase.from('suppliers').select('*'), supabase.from('ingredients').select('*'),
     supabase.from('menus').select('*'), supabase.from('recipes').select('*'), supabase.from('recipe_details').select('*'), supabase.from('inventory_transactions').select('*'),

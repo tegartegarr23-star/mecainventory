@@ -55,7 +55,7 @@ export function deleteTransaction(data: AppData, transactionId: string): AppData
   })
 }
 
-export function reference(type: TransactionType) { return `${type}-${today().replaceAll('-', '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}` }
+export function reference(type: TransactionType) { return `${type}-${today().replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}` }
 
 export function outgoingSufficiency(data: AppData, drafts: MovementDraft[]) {
   const demand = new Map<string, number>()

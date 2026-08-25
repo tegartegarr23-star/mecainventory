@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import type { AdjustmentMode, AppData, Ingredient, InventoryTransaction, MovementDraft, TransactionType } from './types'
 import { activeRecipe, addTransaction, deleteTransaction, money, now, outgoingSufficiency, qty, recipeCost, recomputeStock, reference, today, uid } from './lib/inventory'
 import { loadData, saveData } from './lib/storage'
-import { cloudEnabled, pullSnapshot, pushSnapshot } from './lib/supabase'
+import { cloudEnabled, pullSnapshot, pushSnapshot, signIn, signUp, supabase } from './lib/supabase'
 
 type View = 'dashboard' | 'master' | 'recipes' | 'transactions' | 'reports'
 const nav: Array<[View, string, string]> = [
@@ -16,8 +16,16 @@ export default function App() {
   const [status, setStatus] = useState('Data tersimpan aman di perangkat ini.')
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('mecamocha_last_sync'))
   const [cloudReady, setCloudReady] = useState(!cloudEnabled)
+  const [session, setSession] = useState<unknown>(null)
+  const [authLoading, setAuthLoading] = useState(cloudEnabled)
 
   useEffect(() => { saveData(data) }, [data])
+  useEffect(() => {
+    if (!supabase) { setAuthLoading(false); return }
+    supabase.auth.getSession().then(({ data: result }) => { setSession(result.session?.user ?? null); setAuthLoading(false) })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next?.user ?? null))
+    return () => listener.subscription.unsubscribe()
+  }, [])
   useEffect(() => {
     if (!cloudEnabled) return
     pullSnapshot(data).then((remote) => {
@@ -37,6 +45,8 @@ export default function App() {
   }, [data, cloudReady])
 
   const update = (updater: (current: AppData) => AppData) => setData((current) => updater(current))
+  if (authLoading) return <div className="auth-screen"><div className="auth-card"><span className="brand-mark">M</span><h1>Mecamocha Inventory</h1><p>Memeriksa koneksi akun…</p></div></div>
+  if (cloudEnabled && !session) return <LoginPage />
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">M</span><div><strong>Mecamocha</strong><small>Inventory System</small></div></div>
@@ -53,6 +63,22 @@ export default function App() {
       {view === 'reports' && <Reports data={data} />}
     </main>
   </div>
+}
+
+function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [message, setMessage] = useState('')
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setMessage('Memproses…')
+    try {
+      if (mode === 'login') await signIn(email, password)
+      else await signUp(email, password)
+      setMessage(mode === 'login' ? 'Berhasil masuk.' : 'Akun dibuat. Cek email untuk konfirmasi jika diminta.')
+    } catch (error) { setMessage((error as Error).message) }
+  }
+  return <div className="auth-screen"><div className="auth-card"><span className="brand-mark">M</span><p className="eyebrow">MECAMOCHA INVENTORY</p><h1>{mode === 'login' ? 'Selamat datang kembali.' : 'Buat akun operasional.'}</h1><p className="auth-copy">Masuk untuk mengelola stok, preparation, resep, dan transaksi harian.</p><form onSubmit={submit}><label>Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@perusahaan.com" /></label><label>Password<input required minLength={6} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimal 6 karakter" /></label><button className="btn primary full">{mode === 'login' ? 'Masuk ke aplikasi' : 'Daftar akun'}</button></form>{message && <p className="auth-message">{message}</p>}<button className="text-button auth-toggle" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMessage('') }}>{mode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}</button></div></div>
 }
 
 function Dashboard({ data, setView }: { data: AppData; setView: (view: View) => void }) {
@@ -200,6 +226,7 @@ function categoryName(data: AppData, categoryId: string) { return data.categorie
 function unitLabel(data: AppData, unitId?: string) { return data.units.find((item) => item.id === unitId)?.abbreviation ?? '' }
 function transactionLabel(type: TransactionType) { return ({ INIT: 'Stok awal', PURCHASE: 'Pembelian', PREPARE: 'Prepare', PRODUCTION: 'Penjualan', ADJUSTMENT: 'Penyesuaian' } as Record<TransactionType, string>)[type] }
 function SearchableChoice({ id, setId, options, placeholder, listId }: { id: string; setId: (id: string) => void; options: Array<{ id: string; name: string }>; placeholder: string; listId: string }) {
-  const selected = options.find((item) => item.id === id)
-  return <><input required list={listId} value={selected?.name ?? ''} placeholder={placeholder} onChange={(event) => { const value = event.target.value.toLowerCase(); const match = options.find((item) => item.name.toLowerCase() === value); setId(match?.id ?? '') }} /><datalist id={listId}>{options.map((item) => <option key={item.id} value={item.name} />)}</datalist></>
+  const ordered = [...options].sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }))
+  const selected = ordered.find((item) => item.id === id)
+  return <><input required list={listId} value={selected?.name ?? ''} placeholder={placeholder} onChange={(event) => { const value = event.target.value.toLowerCase(); const match = ordered.find((item) => item.name.toLowerCase() === value); setId(match?.id ?? '') }} /><datalist id={listId}>{ordered.map((item) => <option key={item.id} value={item.name} />)}</datalist></>
 }

@@ -101,7 +101,7 @@ function Empty({ text }: { text: string }) { return <div className="empty">{text
 function Activity({ transaction }: { transaction: InventoryTransaction }) { return <div className="activity"><span className={`tx-icon ${transaction.type.toLowerCase()}`}>{transaction.type === 'PURCHASE' ? '↓' : transaction.type === 'PRODUCTION' ? '↑' : transaction.type === 'PREPARE' ? '↔' : '±'}</span><div><strong>{transactionLabel(transaction.type)}</strong><small>{transaction.referenceNo} · {transaction.transactionDate}</small></div><span className="badge neutral">{transaction.notes || 'Dicatat'}</span></div> }
 
 function MasterData({ data, update }: { data: AppData; update: (fn: (current: AppData) => AppData) => void }) {
-  const [search] = useState('')
+  const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'ingredients' | 'suppliers' | 'settings'>('ingredients')
   const [form, setForm] = useState({ code: '', name: '', categoryId: data.categories[0]?.id ?? '', unitId: data.units[0]?.id ?? '', type: 'raw', minStock: '0', cost: '0', initial: '0' })
   const [supplier, setSupplier] = useState({ name: '', contact: '', address: '' })
@@ -210,7 +210,6 @@ function History({ data, update }: { data: AppData; update: (fn: (current: AppDa
 function Reports({ data }: { data: AppData }) {
   const [date, setDate] = useState(today())
   const [categoryId, setCategoryId] = useState('all')
-  const [search, setSearch] = useState('')
   const [ledgerIngredient, setLedgerIngredient] = useState('')
   const transactions = useMemo(() => new Map(data.transactions.map((item) => [item.id, item])), [data.transactions])
   const rows = useMemo(() => data.ingredients.filter((item) => categoryId === 'all' || item.categoryId === categoryId).map((ingredient) => {

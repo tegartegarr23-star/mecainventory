@@ -57,10 +57,10 @@ export default function App() {
       <header className="topbar"><div><p className="eyebrow">OPERASIONAL HARI INI · {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</p><h1>{nav.find((item) => item[0] === view)?.[2]}</h1></div><div className="top-actions"><span className="sync-state">{cloudEnabled ? 'Supabase terhubung otomatis' : 'Local-first aktif'}</span></div></header>
       <div className="status-bar" role="status"><span>●</span>{status}{lastSync && <em>Sinkron terakhir {new Date(lastSync).toLocaleTimeString('id-ID')}</em>}</div>
       {view === 'dashboard' && <Dashboard data={data} setView={setView} />}
-      {view === 'master' && <MasterData data={data} update={update} />}
+      {view === 'master' && <><MasterData data={data} update={update} /><MasterQuickActions data={data} update={update} /></>}
       {view === 'recipes' && <Recipes data={data} update={update} />}
       {view === 'transactions' && <Transactions data={data} update={update} />}
-      {view === 'reports' && <Reports data={data} />}
+      {view === 'reports' && <><ReportSearch /><Reports data={data} /></>}
     </main>
   </div>
 }
@@ -99,6 +99,19 @@ function Dashboard({ data, setView }: { data: AppData; setView: (view: View) => 
 function Metric({ label, value, meta, icon, tone = '' }: { label: string; value: string; meta: string; icon: string; tone?: string }) { return <div className={`metric-card ${tone}`}><div className="metric-icon">{icon}</div><p>{label}</p><strong>{value}</strong><small>{meta}</small></div> }
 function Empty({ text }: { text: string }) { return <div className="empty">{text}</div> }
 function Activity({ transaction }: { transaction: InventoryTransaction }) { return <div className="activity"><span className={`tx-icon ${transaction.type.toLowerCase()}`}>{transaction.type === 'PURCHASE' ? '↓' : transaction.type === 'PRODUCTION' ? '↑' : transaction.type === 'PREPARE' ? '↔' : '±'}</span><div><strong>{transactionLabel(transaction.type)}</strong><small>{transaction.referenceNo} · {transaction.transactionDate}</small></div><span className="badge neutral">{transaction.notes || 'Dicatat'}</span></div> }
+
+function ReportSearch() {
+  const filter = (value: string) => document.querySelectorAll<HTMLTableRowElement>('.report-table tbody tr').forEach((row) => { row.style.display = row.textContent?.toLowerCase().includes(value.toLowerCase()) ? '' : 'none' })
+  return <div className="panel"><input className="search" placeholder="Cari kode atau nama bahan di laporan…" onChange={(event) => filter(event.target.value)} /></div>
+}
+
+function MasterQuickActions({ data, update }: { data: AppData; update: (fn: (current: AppData) => AppData) => void }) {
+  const editIngredient = (item: Ingredient) => { const name = window.prompt('Nama bahan', item.name); if (name === null) return; const code = window.prompt('Kode bahan', item.code); if (code === null) return; update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, name: name.trim() || row.name, code: code.trim().toUpperCase() || row.code } : row) })) }
+  const toggleIngredient = (item: Ingredient) => { if (!window.confirm(`${item.isActive ? 'Nonaktifkan' : 'Aktifkan'} bahan ${item.name}?`)) return; update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) })) }
+  const editSupplier = (id: string) => { const item = data.suppliers.find((row) => row.id === id); if (!item) return; const name = window.prompt('Nama supplier', item.name); if (name === null) return; update((current) => ({ ...current, suppliers: current.suppliers.map((row) => row.id === id ? { ...row, name: name.trim() || row.name } : row) })) }
+  const deleteSupplier = (id: string) => { if (!window.confirm('Hapus supplier ini?')) return; update((current) => ({ ...current, suppliers: current.suppliers.filter((row) => row.id !== id) })) }
+  return <div className="panel"><p className="eyebrow">AKSI CEPAT MASTER DATA</p><h3>Edit & hapus</h3><div className="multi-lines">{data.ingredients.slice(0, 100).map((item) => <div className="multi-line" key={item.id}><span>{item.code} · {item.name}</span><button type="button" onClick={() => editIngredient(item)}>Edit</button><button type="button" onClick={() => toggleIngredient(item)}>{item.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></div>)}{data.suppliers.map((item) => <div className="multi-line" key={item.id}><span>Supplier · {item.name}</span><button type="button" onClick={() => editSupplier(item.id)}>Edit</button><button type="button" onClick={() => deleteSupplier(item.id)}>Hapus</button></div>)}</div></div>
+}
 
 function MasterData({ data, update }: { data: AppData; update: (fn: (current: AppData) => AppData) => void }) {
   const [search, setSearch] = useState('')

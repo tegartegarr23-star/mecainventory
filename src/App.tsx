@@ -125,6 +125,7 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'ingredients' | 'suppliers' | 'settings'>('ingredients')
   const [form, setForm] = useState({ code: '', name: '', categoryId: data.categories[0]?.id ?? '', unitId: data.units[0]?.id ?? '', type: 'raw', minStock: '0', cost: '0', initial: '0' })
+  const [editingIngredientId, setEditingIngredientId] = useState<string | null>(null)
   const [supplier, setSupplier] = useState({ name: '', contact: '', address: '' })
   const [setting, setSetting] = useState({ kind: 'category', name: '', abbreviation: '' })
   const ingredients = data.ingredients.filter((item) => `${item.code} ${item.name}`.toLowerCase().includes(search.toLowerCase()))
@@ -140,7 +141,7 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
       const oldMenu = document.querySelector('.ingredient-action-menu'); oldMenu?.remove()
       const menu = document.createElement('div'); menu.className = 'ingredient-action-menu'; Object.assign(menu.style, { position: 'fixed', zIndex: '9999', background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '6px', boxShadow: '0 8px 24px #0002' }); const rect = button.getBoundingClientRect(); menu.style.left = `${rect.left - 170}px`; menu.style.top = `${rect.bottom + 4}px`
       const addAction = (label: string, action: () => void) => { const actionButton = document.createElement('button'); actionButton.textContent = label; Object.assign(actionButton.style, { display: 'block', width: '150px', padding: '8px', border: '0', background: 'white', textAlign: 'left', cursor: 'pointer' }); actionButton.onclick = () => { menu.remove(); action() }; menu.appendChild(actionButton) }
-      addAction('Edit', () => { const name = window.prompt('Nama bahan', item.name); if (name === null) return; const code = window.prompt('Kode bahan', item.code); if (code === null) return; update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, name: name.trim() || row.name, code: code.trim().toUpperCase() || row.code } : row) })) })
+      addAction('Edit', () => { setEditingIngredientId(item.id); setForm({ code: item.code, name: item.name, categoryId: item.categoryId, unitId: item.unitId, type: item.type, minStock: String(item.minStock), cost: String(item.costPerUnit), initial: '0' }); menu.remove(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) })
       addAction('Hapus', () => { const used = data.movements.some((movement) => movement.ingredientId === item.id) || data.recipes.some((recipe) => recipe.targetIngredientId === item.id || recipe.details.some((detail) => detail.ingredientId === item.id)); if (used) window.alert('Bahan sudah dipakai transaksi/resep. Gunakan nonaktifkan.'); else if (window.confirm(`Hapus bahan ${item.name}?`)) update((current) => ({ ...current, ingredients: current.ingredients.filter((row) => row.id !== item.id) })) })
       addAction(item.isActive ? 'Nonaktifkan' : 'Aktifkan', () => update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) })))
       document.body.appendChild(menu); return
@@ -148,7 +149,7 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
     document.addEventListener('click', handler, true)
     return () => document.removeEventListener('click', handler, true)
   }, [data, update])
-  const addIngredient = (event: FormEvent) => { event.preventDefault(); if (!form.code || !form.name) return; update((current) => {
+  const addIngredient = (event: FormEvent) => { event.preventDefault(); if (!form.code || !form.name) return; if (editingIngredientId) { update((current) => ({ ...current, ingredients: current.ingredients.map((item) => item.id === editingIngredientId ? { ...item, code: form.code.toUpperCase(), name: form.name, categoryId: form.categoryId, unitId: form.unitId, type: form.type as Ingredient['type'], minStock: Number(form.minStock), costPerUnit: Number(form.cost), cogsPerUnit: Number(form.cost) } : item) })); setEditingIngredientId(null); setForm({ code: '', name: '', categoryId: data.categories[0]?.id ?? '', unitId: data.units[0]?.id ?? '', type: 'raw', minStock: '0', cost: '0', initial: '0' }); return } update((current) => {
     const ingredient: Ingredient = { id: uid(), code: form.code.toUpperCase(), name: form.name, categoryId: form.categoryId, unitId: form.unitId, type: form.type as Ingredient['type'], minStock: Number(form.minStock), currentStock: 0, costPerUnit: Number(form.cost), cogsPerUnit: Number(form.cost), isActive: true, createdAt: now() }
     let next = { ...current, ingredients: [...current.ingredients, ingredient] }
     if (Number(form.initial) > 0) next = addTransaction(next, { type: 'INIT', transactionDate: today(), referenceNo: reference('INIT'), notes: `Stok awal ${ingredient.name}` }, [{ ingredientId: ingredient.id, direction: 'in', quantity: Number(form.initial), description: 'Stok awal bahan baru' }])

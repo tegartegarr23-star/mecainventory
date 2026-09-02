@@ -45,6 +45,7 @@ export default function App() {
   }, [data, cloudReady])
 
   const update = (updater: (current: AppData) => AppData) => setData((current) => updater(current))
+  void MasterQuickActions
   if (authLoading) return <div className="auth-screen"><div className="auth-card"><span className="brand-mark">M</span><h1>Mecamocha Inventory</h1><p>Memeriksa koneksi akun…</p></div></div>
   if (cloudEnabled && !session) return <LoginPage />
   return <div className="app-shell">
@@ -57,7 +58,7 @@ export default function App() {
       <header className="topbar"><div><p className="eyebrow">OPERASIONAL HARI INI · {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</p><h1>{nav.find((item) => item[0] === view)?.[2]}</h1></div><div className="top-actions"><span className="sync-state">{cloudEnabled ? 'Supabase terhubung otomatis' : 'Local-first aktif'}</span></div></header>
       <div className="status-bar" role="status"><span>●</span>{status}{lastSync && <em>Sinkron terakhir {new Date(lastSync).toLocaleTimeString('id-ID')}</em>}</div>
       {view === 'dashboard' && <Dashboard data={data} setView={setView} />}
-      {view === 'master' && <><MasterData data={data} update={update} /><MasterQuickActions data={data} update={update} /></>}
+      {view === 'master' && <MasterData data={data} update={update} />}
       {view === 'recipes' && <Recipes data={data} update={update} />}
       {view === 'transactions' && <Transactions data={data} update={update} />}
       {view === 'reports' && <><ReportSearch /><Reports data={data} /></>}

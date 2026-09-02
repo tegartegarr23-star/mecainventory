@@ -144,17 +144,6 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
       addAction('Hapus', () => { const used = data.movements.some((movement) => movement.ingredientId === item.id) || data.recipes.some((recipe) => recipe.targetIngredientId === item.id || recipe.details.some((detail) => detail.ingredientId === item.id)); if (used) window.alert('Bahan sudah dipakai transaksi/resep. Gunakan nonaktifkan.'); else if (window.confirm(`Hapus bahan ${item.name}?`)) update((current) => ({ ...current, ingredients: current.ingredients.filter((row) => row.id !== item.id) })) })
       addAction(item.isActive ? 'Nonaktifkan' : 'Aktifkan', () => update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) })))
       document.body.appendChild(menu); return
-      const action = ''
-      if (action === 'edit') {
-        const name = window.prompt('Nama bahan', item.name); if (name === null) return
-        const code = window.prompt('Kode bahan', item.code); if (code === null) return
-        update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, name: name.trim() || row.name, code: code.trim().toUpperCase() || row.code } : row) }))
-      } else if (action === 'hapus') {
-        const used = data.movements.some((movement) => movement.ingredientId === item.id) || data.recipes.some((recipe) => recipe.targetIngredientId === item.id || recipe.details.some((detail) => detail.ingredientId === item.id))
-        if (used) window.alert('Bahan sudah dipakai transaksi/resep. Gunakan nonaktifkan.'); else if (window.confirm(`Hapus bahan ${item.name}?`)) update((current) => ({ ...current, ingredients: current.ingredients.filter((row) => row.id !== item.id) }))
-      } else if (action === 'nonaktifkan' || action === 'aktifkan') {
-        update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) }))
-      }
     }
     document.addEventListener('click', handler, true)
     return () => document.removeEventListener('click', handler, true)

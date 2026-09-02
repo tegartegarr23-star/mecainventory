@@ -137,7 +137,14 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
       const rowText = button.closest('tr')?.textContent ?? ''
       const item = data.ingredients.find((ingredient) => rowText.includes(ingredient.code))
       if (!item) return
-      const action = window.prompt(`Aksi untuk ${item.name}: ketik edit, hapus, atau nonaktifkan`, 'edit')?.trim().toLowerCase()
+      const oldMenu = document.querySelector('.ingredient-action-menu'); oldMenu?.remove()
+      const menu = document.createElement('div'); menu.className = 'ingredient-action-menu'; Object.assign(menu.style, { position: 'fixed', zIndex: '9999', background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '6px', boxShadow: '0 8px 24px #0002' }); const rect = button.getBoundingClientRect(); menu.style.left = `${rect.left - 170}px`; menu.style.top = `${rect.bottom + 4}px`
+      const addAction = (label: string, action: () => void) => { const actionButton = document.createElement('button'); actionButton.textContent = label; Object.assign(actionButton.style, { display: 'block', width: '150px', padding: '8px', border: '0', background: 'white', textAlign: 'left', cursor: 'pointer' }); actionButton.onclick = () => { menu.remove(); action() }; menu.appendChild(actionButton) }
+      addAction('Edit', () => { const name = window.prompt('Nama bahan', item.name); if (name === null) return; const code = window.prompt('Kode bahan', item.code); if (code === null) return; update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, name: name.trim() || row.name, code: code.trim().toUpperCase() || row.code } : row) })) })
+      addAction('Hapus', () => { const used = data.movements.some((movement) => movement.ingredientId === item.id) || data.recipes.some((recipe) => recipe.targetIngredientId === item.id || recipe.details.some((detail) => detail.ingredientId === item.id)); if (used) window.alert('Bahan sudah dipakai transaksi/resep. Gunakan nonaktifkan.'); else if (window.confirm(`Hapus bahan ${item.name}?`)) update((current) => ({ ...current, ingredients: current.ingredients.filter((row) => row.id !== item.id) })) })
+      addAction(item.isActive ? 'Nonaktifkan' : 'Aktifkan', () => update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) })))
+      document.body.appendChild(menu); return
+      const action = ''
       if (action === 'edit') {
         const name = window.prompt('Nama bahan', item.name); if (name === null) return
         const code = window.prompt('Kode bahan', item.code); if (code === null) return

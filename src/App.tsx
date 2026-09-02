@@ -128,6 +128,30 @@ function MasterData({ data, update }: { data: AppData; update: (fn: (current: Ap
   const [supplier, setSupplier] = useState({ name: '', contact: '', address: '' })
   const [setting, setSetting] = useState({ kind: 'category', name: '', abbreviation: '' })
   const ingredients = data.ingredients.filter((item) => `${item.code} ${item.name}`.toLowerCase().includes(search.toLowerCase()))
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      const button = target.closest('.icon-button')
+      if (!button) return
+      event.preventDefault(); event.stopImmediatePropagation()
+      const rowText = button.closest('tr')?.textContent ?? ''
+      const item = data.ingredients.find((ingredient) => rowText.includes(ingredient.code))
+      if (!item) return
+      const action = window.prompt(`Aksi untuk ${item.name}: ketik edit, hapus, atau nonaktifkan`, 'edit')?.trim().toLowerCase()
+      if (action === 'edit') {
+        const name = window.prompt('Nama bahan', item.name); if (name === null) return
+        const code = window.prompt('Kode bahan', item.code); if (code === null) return
+        update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, name: name.trim() || row.name, code: code.trim().toUpperCase() || row.code } : row) }))
+      } else if (action === 'hapus') {
+        const used = data.movements.some((movement) => movement.ingredientId === item.id) || data.recipes.some((recipe) => recipe.targetIngredientId === item.id || recipe.details.some((detail) => detail.ingredientId === item.id))
+        if (used) window.alert('Bahan sudah dipakai transaksi/resep. Gunakan nonaktifkan.'); else if (window.confirm(`Hapus bahan ${item.name}?`)) update((current) => ({ ...current, ingredients: current.ingredients.filter((row) => row.id !== item.id) }))
+      } else if (action === 'nonaktifkan' || action === 'aktifkan') {
+        update((current) => ({ ...current, ingredients: current.ingredients.map((row) => row.id === item.id ? { ...row, isActive: !row.isActive } : row) }))
+      }
+    }
+    document.addEventListener('click', handler, true)
+    return () => document.removeEventListener('click', handler, true)
+  }, [data, update])
   const addIngredient = (event: FormEvent) => { event.preventDefault(); if (!form.code || !form.name) return; update((current) => {
     const ingredient: Ingredient = { id: uid(), code: form.code.toUpperCase(), name: form.name, categoryId: form.categoryId, unitId: form.unitId, type: form.type as Ingredient['type'], minStock: Number(form.minStock), currentStock: 0, costPerUnit: Number(form.cost), cogsPerUnit: Number(form.cost), isActive: true, createdAt: now() }
     let next = { ...current, ingredients: [...current.ingredients, ingredient] }
